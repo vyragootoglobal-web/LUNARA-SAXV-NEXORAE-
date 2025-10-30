@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LUNARA SAXV NEXORAE (LSN) | Polygon Realtime</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+</head>
+<body class="bg-gradient-to-b from-slate-900 to-slate-800 text-white min-h-screen flex flex-col items-center justify-center p-4">
+  <div class="max-w-2xl w-full text-center">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold mb-2">🌕 LUNARA SAXV NEXORAE (LSN)</h1>
+      <p class="text-slate-400">Realtime token dashboard on Polygon Network</p>
+    </div>
+
+    <div class="mb-6">
+      <button id="connectBtn" class="bg-yellow-400 text-black font-semibold px-4 py-2 rounded-lg hover:bg-yellow-300">
+        Connect Wallet
+      </button>
+      <p id="wallet" class="text-sm text-slate-300 mt-2"></p>
+    </div>
+
+    <div id="tokenInfo" class="bg-slate-800/60 rounded-xl p-4 text-left mb-6 hidden">
+      <h2 class="text-xl font-semibold mb-3">Token Info</h2>
+      <p><strong>Name:</strong> <span id="tokenName">—</span></p>
+      <p><strong>Symbol:</strong> <span id="tokenSymbol">—</span></p>
+      <p><strong>Total Supply:</strong> <span id="tokenSupply">—</span></p>
+      <p><strong>Decimals:</strong> <span id="tokenDecimals">—</span></p>
+    </div>
+
+    <div id="networkInfo" class="bg-slate-800/60 rounded-xl p-4 text-left mb-6 hidden">
+      <h2 class="text-xl font-semibold mb-3">Network Info</h2>
+      <p><strong>Network:</strong> <span id="networkName">—</span></p>
+      <p><strong>Latest Block:</strong> <span id="latestBlock">—</span></p>
+      <p><strong>Provider:</strong> Polygon RPC</p>
+    </div>
+
+    <p class="text-sm text-slate-500">Contract: <span class="text-slate-300">0xADA896eFAB38a9662801DD0143FC6145DA2438bC</span></p>
+  </div>
+
+  <script>
+    const TOKEN_ADDRESS = "0xADA896eFAB38a9662801DD0143FC6145DA2438bC";
+    const RPC_URL = "https://polygon-rpc.com";
+    const provider = new ethers.JsonRpcProvider(RPC_URL);
+    const abi = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function decimals() view returns (uint8)",
+      "function totalSupply() view returns (uint256)"
+    ];
+
+    const connectBtn = document.getElementById('connectBtn');
+    const walletEl = document.getElementById('wallet');
+    const tokenInfoEl = document.getElementById('tokenInfo');
+    const networkInfoEl = document.getElementById('networkInfo');
+
+    async function connectWallet() {
+      if (!window.ethereum) {
+        alert('MetaMask not found!');
+        return;
+      }
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const account = accounts[0];
+        walletEl.textContent = `Connected: ${account.slice(0,6)}...${account.slice(-4)}`;
+        await fetchTokenData();
+        await fetchNetworkData();
+      } catch (e) {
+        alert('Connection failed: ' + e.message);
+      }
+    }
+
+    async function fetchTokenData() {
+      const token = new ethers.Contract(TOKEN_ADDRESS, abi, provider);
+      try {
+        const [name, symbol, decimals, supplyRaw] = await Promise.all([
+          token.name(),
+          token.symbol(),
+          token.decimals(),
+          token.totalSupply()
+        ]);
+        const supply = ethers.formatUnits(supplyRaw, decimals);
+        document.getElementById('tokenName').textContent = name;
+        document.getElementById('tokenSymbol').textContent = symbol;
+        document.getElementById('tokenDecimals').textContent = decimals;
+        document.getElementById('tokenSupply').textContent = supply + " " + symbol;
+        tokenInfoEl.classList.remove('hidden');
+      } catch (e) {
+        console.error(e);
+        alert('Failed to load token data.');
+      }
+    }
+
+    async function fetchNetworkData() {
+      try {
+        const network = await provider.getNetwork();
+        document.getElementById('networkName').textContent = network.name + " (" + network.chainId + ")";
+        networkInfoEl.classList.remove('hidden');
+        updateBlock();
+        setInterval(updateBlock, 5000);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function updateBlock() {
+      const block = await provider.getBlockNumber();
+      document.getElementById('latestBlock').textContent = block;
+    }
+
+    connectBtn.addEventListener('click', connectWallet);
+  </script>
+</body>
+</html>
